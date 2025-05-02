@@ -29,6 +29,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login") # Points to the /login en
 gold_price_cache = None
 gold_price_last_updated = None
 
+# Silver price cache
+silver_price_cache = None
+silver_price_last_updated = None
+
+# Palladium price cache
+palladium_price_cache = None
+palladium_price_last_updated = None
+
 app = FastAPI()
 
 # CORS middleware setup
@@ -468,15 +476,45 @@ async def fetch_live_gold_price():
     try:
         gold_data = yf.download('GC=F', period='1d')
         if not gold_data.empty:
-            current_price = gold_data['Close'].iloc[-1]
-            return current_price
+            current_price_raw = gold_data['Close'].iloc[-1]
+            current_price_float = float(current_price_raw) # Ensure it's a float
+            print(f"Fetched Gold Price: {current_price_float} (Type: {type(current_price_float)})") # Log fetched value and type
+            return current_price_float
         return None
     except Exception as e:
-        print(f"Error fetching gold price: {e}")
+        print(f"Error fetching/processing gold price: {e}")
+        return None
+
+async def fetch_live_silver_price():
+    """Fetch current silver price using yfinance"""
+    try:
+        silver_data = yf.download('SI=F', period='1d')
+        if not silver_data.empty:
+            current_price_raw = silver_data['Close'].iloc[-1]
+            current_price_float = float(current_price_raw) # Ensure it's a float
+            print(f"Fetched Silver Price: {current_price_float} (Type: {type(current_price_float)})") # Log fetched value and type
+            return current_price_float
+        return None
+    except Exception as e:
+        print(f"Error fetching/processing silver price: {e}")
+        return None
+
+async def fetch_live_palladium_price():
+    """Fetch current palladium price using yfinance"""
+    try:
+        palladium_data = yf.download('PA=F', period='1d')
+        if not palladium_data.empty:
+            current_price_raw = palladium_data['Close'].iloc[-1]
+            current_price_float = float(current_price_raw) # Ensure it's a float
+            print(f"Fetched Palladium Price: {current_price_float} (Type: {type(current_price_float)})") # Log fetched value and type
+            return current_price_float
+        return None
+    except Exception as e:
+        print(f"Error fetching/processing palladium price: {e}")
         return None
 
 # --- Gold Price Endpoint (Still uses API Key Auth) ---
-# Note: This endpoint still uses the API key directly.
+# Note: This endpoint uses API Key Authentication.
 
 @app.get("/gold")
 async def get_gold_data(api_key: str = Header(...)):
@@ -484,19 +522,18 @@ async def get_gold_data(api_key: str = Header(...)):
     try:
         global gold_price_cache, gold_price_last_updated
 
-        # Validate API key (unchanged for now)
+        # Validate API key
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id FROM api_keys WHERE key = ? AND is_active = 1", (api_key,)) # Fetch user_id too
+        # Check if key exists and is active
+        cursor.execute("SELECT id FROM api_keys WHERE key = ? AND is_active = 1", (api_key,))
         key_record = cursor.fetchone()
 
         if not key_record:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or inactive API key")
 
-        # Log key usage (Now we *could* potentially link this to the user_id from key_record if needed)
-        # Consider moving log_key_usage call inside its own try/except if it becomes complex
+        # Log key usage
         await log_key_usage(api_key)
-        # user_id_associated_with_key = key_record["user_id"] # Available if needed for detailed logging
 
         # Check if cache is expired (older than 1 minute)
         if (gold_price_last_updated is None or
@@ -519,10 +556,212 @@ async def get_gold_data(api_key: str = Header(...)):
         }
     except HTTPException as http_exc: # Re-raise HTTP exceptions
         raise http_exc
+    except HTTPException as http_exc: # Re-raise HTTP exceptions
+        raise http_exc
+    except HTTPException as http_exc: # Re-raise HTTP exceptions
+        raise http_exc
     except Exception as e:
         print(f"!!! UNEXPECTED ERROR in get_gold_data for key {api_key[:8]}... !!!") # Avoid logging full key
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching gold data.")
+    finally:
+        if conn:
+            conn.close()
+
+
+# --- Dashboard Prices Endpoint (Uses JWT Auth) ---
+@app.get("/dashboard/prices")
+async def get_dashboard_prices(current_user: dict = Depends(get_current_user)):
+    """Fetches all commodity prices for the authenticated dashboard user."""
+    # No API key validation or usage logging needed here, as auth is handled by JWT.
+    # We rely on the caching logic within the individual price endpoints being called internally,
+    # or we could implement caching directly here if preferred. For simplicity, let's call them.
+    # Note: This approach might log usage multiple times if the user also uses the direct API key endpoints.
+    # A more robust solution might involve separate internal fetching functions without logging.
+
+    # We still need access to the global cache variables if we want to check them here
+    global gold_price_cache, gold_price_last_updated
+    global silver_price_cache, silver_price_last_updated
+    global palladium_price_cache, palladium_price_last_updated
+
+    prices = {}
+    errors = {}
+
+    # Fetch Gold
+    try:
+        if (gold_price_last_updated is None or
+            (datetime.now() - gold_price_last_updated) > timedelta(minutes=1)):
+            gold_price = await fetch_live_gold_price()
+            if gold_price is not None:
+                gold_price_cache = gold_price
+                gold_price_last_updated = datetime.now()
+        if gold_price_cache is not None:
+             prices["gold"] = {
+                 "price": gold_price_cache,
+                 "currency": "USD",
+                 "last_updated": gold_price_last_updated.timestamp(),
+                 "unit": "per troy ounce",
+                 "source": "live market data"
+             }
+        else:
+            errors["gold"] = "Unable to fetch gold price"
+    except Exception as e:
+        print(f"Error fetching gold for dashboard: {e}")
+        errors["gold"] = "Error fetching gold price"
+
+    # Fetch Silver
+    try:
+        if (silver_price_last_updated is None or
+            (datetime.now() - silver_price_last_updated) > timedelta(minutes=1)):
+            silver_price = await fetch_live_silver_price()
+            if silver_price is not None:
+                silver_price_cache = silver_price
+                silver_price_last_updated = datetime.now()
+        if silver_price_cache is not None:
+            prices["silver"] = {
+                "price": silver_price_cache,
+                "currency": "USD",
+                "last_updated": silver_price_last_updated.timestamp(),
+                "unit": "per troy ounce",
+                "source": "live market data"
+            }
+        else:
+             errors["silver"] = "Unable to fetch silver price"
+    except Exception as e:
+        print(f"Error fetching silver for dashboard: {e}")
+        errors["silver"] = "Error fetching silver price"
+
+    # Fetch Palladium
+    try:
+        if (palladium_price_last_updated is None or
+            (datetime.now() - palladium_price_last_updated) > timedelta(minutes=1)):
+            palladium_price = await fetch_live_palladium_price()
+            if palladium_price is not None:
+                palladium_price_cache = palladium_price
+                palladium_price_last_updated = datetime.now()
+        if palladium_price_cache is not None:
+            prices["palladium"] = {
+                "price": palladium_price_cache,
+                "currency": "USD",
+                "last_updated": palladium_price_last_updated.timestamp(),
+                "unit": "per troy ounce",
+                "source": "live market data"
+            }
+        else:
+             errors["palladium"] = "Unable to fetch palladium price"
+    except Exception as e:
+        print(f"Error fetching palladium for dashboard: {e}")
+        errors["palladium"] = "Error fetching palladium price"
+
+    # Return fetched prices and any errors encountered
+    # If no prices could be fetched at all, maybe return a 503?
+    if not prices and errors:
+         # Raise a 503 if all fetches failed
+         first_error = list(errors.values())[0]
+         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Failed to fetch any prices. Last error: {first_error}")
+
+    return {"prices": prices, "errors": errors}
+
+
+# --- Silver Price Endpoint (Uses API Key Auth) ---
+@app.get("/silver")
+async def get_silver_data(api_key: str = Header(...)):
+    conn = None
+    try:
+        global silver_price_cache, silver_price_last_updated
+
+        # Validate API key
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM api_keys WHERE key = ? AND is_active = 1", (api_key,))
+        key_record = cursor.fetchone()
+
+        if not key_record:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or inactive API key")
+
+        # Log key usage
+        await log_key_usage(api_key)
+
+        # Check cache
+        if (silver_price_last_updated is None or
+            (datetime.now() - silver_price_last_updated) > timedelta(minutes=1)):
+            silver_price = await fetch_live_silver_price()
+            if silver_price is not None:
+                silver_price_cache = silver_price
+                silver_price_last_updated = datetime.now()
+
+        if silver_price_cache is None:
+            raise HTTPException(status_code=503, detail="Unable to fetch silver price")
+
+        return {
+            "silver_price": silver_price_cache,
+            "currency": "USD",
+            "last_updated": silver_price_last_updated.timestamp(),
+            "unit": "per troy ounce",
+            "source": "live market data"
+        }
+    except HTTPException as http_exc:
+        raise http_exc
+    except HTTPException as http_exc:
+        raise http_exc
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        print(f"!!! UNEXPECTED ERROR in get_silver_data for key {api_key[:8]}... !!!")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching silver data.")
+    finally:
+        if conn:
+            conn.close()
+
+
+# --- Palladium Price Endpoint (Uses API Key Auth) ---
+@app.get("/palladium")
+async def get_palladium_data(api_key: str = Header(...)):
+    conn = None
+    try:
+        global palladium_price_cache, palladium_price_last_updated
+
+        # Validate API key
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM api_keys WHERE key = ? AND is_active = 1", (api_key,))
+        key_record = cursor.fetchone()
+
+        if not key_record:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or inactive API key")
+
+        # Log key usage
+        await log_key_usage(api_key)
+
+        # Check cache
+        if (palladium_price_last_updated is None or
+            (datetime.now() - palladium_price_last_updated) > timedelta(minutes=1)):
+            palladium_price = await fetch_live_palladium_price()
+            if palladium_price is not None:
+                palladium_price_cache = palladium_price
+                palladium_price_last_updated = datetime.now()
+
+        if palladium_price_cache is None:
+            raise HTTPException(status_code=503, detail="Unable to fetch palladium price")
+
+        return {
+            "palladium_price": palladium_price_cache,
+            "currency": "USD",
+            "last_updated": palladium_price_last_updated.timestamp(),
+            "unit": "per troy ounce",
+            "source": "live market data"
+        }
+    except HTTPException as http_exc:
+        raise http_exc
+    except HTTPException as http_exc:
+        raise http_exc
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        print(f"!!! UNEXPECTED ERROR in get_palladium_data for key {api_key[:8]}... !!!")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching palladium data.")
     finally:
         if conn:
             conn.close()

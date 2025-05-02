@@ -1,0 +1,125 @@
+.api-keys {
+  padding: 20px;
+  font-family: sans-serif;
+}
+
+.keys-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.keys-table th,
+.keys-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle; /* Align content vertically */
+}
+
+.keys-table th {
+  background-color: #f2f2f2;
+}
+
+.key-cell {
+  word-break: break-all; /* Prevent long keys from breaking layout */
+  max-width: 250px; /* Limit width */
+}
+
+.actions-cell, .snippets-cell {
+  white-space: nowrap; /* Prevent buttons wrapping */
+}
+
+.action-button, .copy-button {
+  padding: 5px 10px;
+  margin-right: 5px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #eee;
+}
+
+.action-button:hover, .copy-button:hover {
+  background-color: #ddd;
+}
+
+.revoke-button {
+  background-color: #fdd;
+  border-color: #f99;
+}
+
+.revoke-button:hover {
+  background-color: #fcc;
+}
+
+.copy-button {
+  min-width: 90px; /* Give buttons a consistent width */
+  text-align: center;
+}
+
+.js-copy-button {
+  background-color: #efd81d; /* Yellowish for JS */
+  border-color: #dabc11;
+}
+.js-copy-button:hover {
+  background-color: #dabc11;
+}
+
+.py-copy-button {
+  background-color: #3572A5; /* Blueish for Python */
+  border-color: #2b5c87;
+  color: white;
+}
+.py-copy-button:hover {
+  background-color: #2b5c87;
+}
+
+.curl-copy-button {
+  background-color: #6c757d; /* Grayish for Curl */
+  border-color: #5a6268;
+  color: white;
+}
+.curl-copy-button:hover {
+  background-color: #5a6268;
+}
+
+/* Style for when button is clicked */
+.copy-button:active {
+  transform: translateY(1px);
+}
+
+/* Style for the 'Copied!' text */
+.copy-button[disabled] { /* You might want to disable briefly after copy */
+  opacity: 0.7;
+}
+
+.error {
+  color: red;
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid red;
+  background-color: #ffebeb;
+  border-radius: 4px;
+}
+
+.key-generator {
+  margin-bottom: 20px;
+}
+
+.key-generator button {
+   padding: 8px 15px;
+   cursor: pointer;
+   border: 1px solid #ccc;
+   border-radius: 4px;
+   background-color: #4CAF50; /* Green */
+   color: white;
+}
+
+.key-generator button:hover {
+    background-color: #45a049;
+}
+
+.key-generator button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}

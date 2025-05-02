@@ -1,0 +1,42 @@
+/* Basic Navbar Styles - Add more as needed */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem; /* Add some space below the navbar */
+}
+
+.navbar-brand a {
+    font-weight: bold;
+    text-decoration: none;
+    color: #343a40;
+}
+
+.navbar-links a,
+.navbar-links .navbar-user,
+.navbar-links .logout-button {
+    margin-left: 1rem;
+    text-decoration: none;
+    color: #007bff;
+}
+
+.navbar-links .navbar-user {
+    color: #6c757d;
+    margin-right: 0.5rem;
+}
+
+.navbar-links .logout-button {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit; /* Match link font size */
+}
+
+.navbar-links .logout-button:hover {
+    text-decoration: underline;
+}

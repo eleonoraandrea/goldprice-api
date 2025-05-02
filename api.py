@@ -35,10 +35,10 @@ app = FastAPI()
 # Allow the frontend origin specifically, and allow credentials
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # Specific origin
-    allow_credentials=True, # Required for cookies, authorization headers
-    allow_methods=["*"], # Allow all methods (GET, POST, etc.)
-    allow_headers=["*"], # Allow all headers, including Authorization
+    allow_origins=["*"], # Allow all origins (use with caution in production)
+    allow_credentials=True, # Note: allow_credentials=True with allow_origins=["*"] can be problematic in some browsers/configs
+    allow_methods=["*"], # Allow all standard methods
+    allow_headers=["Content-Type", "Authorization"], # Explicitly allow common headers
 )
 
 # Database model
